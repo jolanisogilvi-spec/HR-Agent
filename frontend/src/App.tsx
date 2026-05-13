@@ -7,6 +7,7 @@ import Resumes from './pages/Resumes'
 import ResumeDetail from './pages/Resumes/ResumeDetail'
 import Interviews from './pages/Interviews'
 import Settings from './pages/Settings'
+import Usage from './pages/Usage'
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="resumes" element={<Resumes />} />
           <Route path="resumes/:id" element={<ResumeDetail />} />
           <Route path="interviews" element={<Interviews />} />
+          <Route path="usage" element={<Usage />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>

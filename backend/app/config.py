@@ -9,10 +9,10 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
 
-    # AI 接口配置（兼容 OpenAI 协议，当前使用 MiMo）
+    # AI 接口配置（兼容 OpenAI 协议，当前使用 DeepSeek）
     AI_API_KEY: str = ""
-    AI_BASE_URL: str = "https://token-plan-cn.xiaomimimo.com/v1"
-    AI_MODEL: str = "mimo-v2.5-pro"
+    AI_BASE_URL: str = "https://api.deepseek.com"
+    AI_MODEL: str = "deepseek-v4-pro"
 
     # 邮件
     SMTP_HOST: str = "smtp.example.com"

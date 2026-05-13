@@ -84,6 +84,7 @@ export default function Resumes() {
   }
 
   const handleEvaluate = async (id: number) => {
+    if (evaluatingIds.has(id)) return
     setEvaluatingIds(prev => new Set(prev).add(id))
     try {
       const res: any = await resumesApi.evaluate(id)
@@ -140,6 +141,7 @@ export default function Resumes() {
             size="small"
             icon={<RobotOutlined />}
             loading={evaluatingIds.has(r.id)}
+            disabled={evaluatingIds.has(r.id)}
             onClick={() => handleEvaluate(r.id)}
           >
             AI评估

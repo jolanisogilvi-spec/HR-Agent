@@ -1,7 +1,7 @@
 import { Layout, Menu } from 'antd'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
-  DashboardOutlined, TeamOutlined, FileTextOutlined, CalendarOutlined, SettingOutlined
+  DashboardOutlined, TeamOutlined, FileTextOutlined, CalendarOutlined, SettingOutlined, BarChartOutlined
 } from '@ant-design/icons'
 
 const { Sider, Content, Header } = Layout
@@ -11,6 +11,7 @@ const menuItems = [
   { key: '/jobs', icon: <TeamOutlined />, label: '岗位管理' },
   { key: '/resumes', icon: <FileTextOutlined />, label: '人才库' },
   { key: '/interviews', icon: <CalendarOutlined />, label: '面试管理' },
+  { key: '/usage', icon: <BarChartOutlined />, label: '用量统计' },
   { key: '/settings', icon: <SettingOutlined />, label: '系统设置' },
 ]
 

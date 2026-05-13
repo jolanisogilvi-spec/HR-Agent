@@ -4,6 +4,7 @@ from sqlalchemy import func as sql_func
 from typing import Optional
 from datetime import date, datetime, time, timedelta
 from pydantic import BaseModel
+import asyncio
 import os
 import uuid
 import logging
@@ -28,7 +29,7 @@ async def parse_resume_record(resume: Resume, db: Session) -> None:
     from app.services.document_parser import document_parser
     from app.services.ai_service import ai_service
 
-    raw_text = document_parser.parse_file(resume.file_path)
+    raw_text = await asyncio.to_thread(document_parser.parse_file, resume.file_path)
     resume.raw_text = raw_text
     db.commit()
 
@@ -154,6 +155,7 @@ async def evaluate_resume(resume_id: int, db: Session = Depends(get_db)):
     if not job:
         raise HTTPException(status_code=404, detail="关联岗位不存在")
 
+    previous_status = resume.status
     try:
         from app.services.ai_service import ai_service
         resume.status = "评估中"
@@ -161,17 +163,21 @@ async def evaluate_resume(resume_id: int, db: Session = Depends(get_db)):
         evaluation = await ai_service.evaluate_resume(
             raw_text=resume.raw_text,
             job_title=job.title,
+            job_description=job.description,
             job_requirements=job.requirements,
             evaluation_criteria=job.evaluation_criteria or "",
             key_skills=job.key_skills or [],
         )
         resume.match_score = evaluation.get("match_score", 0)
         resume.ai_evaluation = evaluation
+        resume.status = previous_status if previous_status != "评估中" else "新投递"
         db.commit()
         db.refresh(resume)
         return {"message": "AI评估完成", "resume_id": resume_id, "match_score": resume.match_score}
     except Exception as e:
         logger.error(f"AI评估失败: {e}")
+        resume.status = previous_status
+        db.commit()
         error_text = str(e)
         if "401" in error_text or "Invalid API Key" in error_text or "invalid_key" in error_text:
             raise HTTPException(

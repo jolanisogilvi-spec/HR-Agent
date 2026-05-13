@@ -16,6 +16,20 @@ export interface Job {
   updated_at: string
 }
 
+export interface JobGenerateInput {
+  role_prompt: string
+  department?: string
+  seniority?: string
+  location?: string
+  business_context?: string
+  salary_budget?: string
+  extra_requirements?: string
+}
+
+export type GeneratedJobDraft = Omit<Job, 'id' | 'created_at' | 'updated_at'> & {
+  generation_notes?: string
+}
+
 export interface Resume {
   id: number
   job_id: number
@@ -81,6 +95,60 @@ export interface DashboardStats {
   job_distribution: Array<{ job_title: string; count: number; job_id: number }>
   total_jobs: number
   open_jobs: number
+}
+
+export interface UsageStats {
+  summary: {
+    evaluated_resumes: number
+    ai_call_count: number
+    total_tokens: number
+    estimated_cost_cny: number
+  }
+  by_model: UsageBreakdown[]
+  by_purpose: Array<UsageBreakdown & {
+    purpose: string
+    purpose_label: string
+  }>
+  recent_calls: Array<{
+    id: number
+    purpose: string
+    purpose_label: string
+    model: string
+    prompt_tokens: number
+    prompt_cache_hit_tokens: number
+    prompt_cache_miss_tokens: number
+    completion_tokens: number
+    total_tokens: number
+    estimated_cost_cny: number
+    created_at: string
+  }>
+  pricing: {
+    source: string
+    source_url: string
+    unit: string
+    models: Record<string, {
+      input_cache_hit: number
+      input_cache_miss: number
+      output: number
+    }>
+  }
+}
+
+export interface UsageBreakdown {
+  model: string
+  normalized_model: string
+  call_count: number
+  prompt_tokens: number
+  prompt_cache_hit_tokens: number
+  prompt_cache_miss_tokens: number
+  completion_tokens: number
+  total_tokens: number
+  estimated_cost_cny: number
+  pricing?: {
+    input_cache_hit: number
+    input_cache_miss: number
+    output: number
+  }
 }
 
 export interface AppSettings {

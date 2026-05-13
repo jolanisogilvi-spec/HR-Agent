@@ -1,5 +1,14 @@
 import axios from 'axios'
-import type { Job, Resume, Interview, DashboardStats, AppSettings } from '../types'
+import type {
+  Job,
+  Resume,
+  Interview,
+  DashboardStats,
+  AppSettings,
+  GeneratedJobDraft,
+  JobGenerateInput,
+  UsageStats,
+} from '../types'
 
 const api = axios.create({ baseURL: '/api', timeout: 120000 })
 
@@ -19,6 +28,7 @@ export const jobsApi = {
   create: (data: Partial<Job>) => api.post<any, Job>('/jobs', data),
   update: (id: number, data: Partial<Job>) => api.put<any, Job>(`/jobs/${id}`, data),
   delete: (id: number) => api.delete(`/jobs/${id}`),
+  generateDraft: (data: JobGenerateInput) => api.post<any, GeneratedJobDraft>('/jobs/generate-draft', data),
   generateCriteria: (id: number) => api.post<any, { evaluation_criteria: string }>(`/jobs/${id}/generate-criteria`),
 }
 
@@ -59,4 +69,9 @@ export const dashboardApi = {
 export const settingsApi = {
   get: () => api.get<any, AppSettings>('/settings'),
   update: (data: Partial<AppSettings>) => api.put<any, AppSettings>('/settings', data),
+}
+
+// AI 用量统计
+export const usageApi = {
+  getStats: () => api.get<any, UsageStats>('/usage/stats'),
 }

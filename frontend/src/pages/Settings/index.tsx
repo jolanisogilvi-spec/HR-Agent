@@ -62,12 +62,12 @@ export default function Settings() {
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item name={['ai', 'model']} label="模型名称" rules={[{ required: true, message: '请输入模型名称' }]}>
-              <Input placeholder="mimo-v2.5-pro" />
+              <Input placeholder="deepseek-v4-pro" />
             </Form.Item>
           </Col>
           <Col span={12}>
             <Form.Item name={['ai', 'base_url']} label="接口地址" rules={[{ required: true, message: '请输入接口地址' }]}>
-              <Input placeholder="https://api.example.com/v1" />
+              <Input placeholder="https://api.deepseek.com" />
             </Form.Item>
           </Col>
           <Col span={24}>

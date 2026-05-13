@@ -4,7 +4,7 @@ import os
 import logging
 from app.config import settings
 from app.database import create_tables
-from app.routes import jobs, resumes, interviews, settings as settings_routes
+from app.routes import jobs, resumes, interviews, settings as settings_routes, usage
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -31,6 +31,7 @@ app.include_router(resumes.dashboard_router)
 app.include_router(interviews.router)
 app.include_router(interviews.hr_availability_router)
 app.include_router(settings_routes.router)
+app.include_router(usage.router)
 
 
 @app.on_event("startup")

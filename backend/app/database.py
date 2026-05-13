@@ -20,5 +20,5 @@ def get_db():
 
 
 def create_tables():
-    from app.models import job, resume, interview, hr_availability  # noqa: F401
+    from app.models import job, resume, interview, hr_availability, ai_usage  # noqa: F401
     Base.metadata.create_all(bind=engine)

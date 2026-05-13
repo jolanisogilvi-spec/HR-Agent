@@ -1,18 +1,22 @@
 import { useEffect, useState } from 'react'
-import { Form, Input, InputNumber, Select, Button, Card, Space, message, Spin, Divider } from 'antd'
+import { Alert, Form, Input, InputNumber, Select, Button, Card, Space, message, Spin, Divider, Modal } from 'antd'
+import { BulbOutlined } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import { jobsApi } from '../../services/api'
-import type { Job } from '../../types'
+import type { GeneratedJobDraft, Job, JobGenerateInput } from '../../types'
 
 const { TextArea } = Input
 
 export default function JobForm() {
   const [form] = Form.useForm()
+  const [draftForm] = Form.useForm<JobGenerateInput>()
   const navigate = useNavigate()
   const { id } = useParams()
   const isEdit = !!id
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
+  const [draftModalOpen, setDraftModalOpen] = useState(false)
+  const [generatingDraft, setGeneratingDraft] = useState(false)
   const [criteria, setCriteria] = useState('')
 
   useEffect(() => {
@@ -58,10 +62,53 @@ export default function JobForm() {
     }
   }
 
+  const applyGeneratedDraft = (draft: GeneratedJobDraft) => {
+    const jobFields: Partial<Job> = {
+      title: draft.title,
+      department: draft.department,
+      description: draft.description,
+      requirements: draft.requirements,
+      experience_years_min: draft.experience_years_min,
+      experience_years_max: draft.experience_years_max,
+      education_requirement: draft.education_requirement,
+      key_skills: draft.key_skills,
+      salary_range_min: draft.salary_range_min,
+      salary_range_max: draft.salary_range_max,
+      status: draft.status,
+    }
+    form.setFieldsValue(jobFields)
+    setCriteria(draft.evaluation_criteria || '')
+  }
+
+  const handleGenerateDraft = async () => {
+    try {
+      const values = await draftForm.validateFields()
+      setGeneratingDraft(true)
+      const draft = await jobsApi.generateDraft(values)
+      applyGeneratedDraft(draft)
+      setDraftModalOpen(false)
+      message.success(draft.generation_notes || '岗位草稿已生成，请检查后保存')
+    } catch (err: any) {
+      if (err?.errorFields) return
+      const detail = err?.response?.data?.detail
+      message.error(detail || '岗位生成失败，请检查模型配置后重试')
+    } finally {
+      setGeneratingDraft(false)
+    }
+  }
+
   return (
     <Card title={isEdit ? '编辑岗位' : '新建招聘岗位'}
-          extra={<Button onClick={() => navigate('/jobs')}>返回列表</Button>}>
-      <Form form={form} layout="vertical" onFinish={handleSubmit} style={{ maxWidth: 800 }}>
+          extra={
+            <Space>
+              <Button icon={<BulbOutlined />} onClick={() => setDraftModalOpen(true)}>
+                一键生成岗位
+              </Button>
+              <Button onClick={() => navigate('/jobs')}>返回列表</Button>
+            </Space>
+          }>
+      <Form form={form} layout="vertical" onFinish={handleSubmit} style={{ maxWidth: 800 }}
+            initialValues={{ status: '开放', education_requirement: '本科' }}>
         <Form.Item name="title" label="岗位名称" rules={[{ required: true }]}>
           <Input placeholder="例如：高级前端工程师" />
         </Form.Item>
@@ -133,6 +180,59 @@ export default function JobForm() {
           </Space>
         </Form.Item>
       </Form>
+
+      <Modal
+        title="一键生成岗位"
+        open={draftModalOpen}
+        onCancel={() => setDraftModalOpen(false)}
+        onOk={handleGenerateDraft}
+        okText="生成并填入表单"
+        cancelText="取消"
+        confirmLoading={generatingDraft}
+        width={720}
+      >
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="填写岗位方向即可生成完整草稿；部门、级别、地点、业务背景、薪资预算会让结果更贴近实际。生成后不会自动保存。"
+        />
+        <Form form={draftForm} layout="vertical">
+          <Form.Item
+            name="role_prompt"
+            label="岗位方向 / 招聘目标"
+            rules={[{ required: true, message: '请输入要生成的岗位方向' }]}
+          >
+            <Input placeholder="例如：为 B 端 SaaS 产品招聘高级前端工程师" />
+          </Form.Item>
+          <Space size={16} style={{ width: '100%' }} wrap>
+            <Form.Item name="department" label="所属部门" style={{ width: 210 }}>
+              <Input placeholder="例如：技术部" />
+            </Form.Item>
+            <Form.Item name="seniority" label="岗位级别" style={{ width: 210 }}>
+              <Select allowClear placeholder="请选择">
+                {['实习', '初级', '中级', '高级', '专家', '负责人'].map(level => (
+                  <Select.Option key={level} value={level}>{level}</Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+            <Form.Item name="location" label="工作地点" style={{ width: 210 }}>
+              <Input placeholder="例如：上海 / 远程" />
+            </Form.Item>
+          </Space>
+          <Form.Item name="business_context" label="业务背景">
+            <TextArea rows={3} placeholder="例如：负责招聘系统、简历解析、AI 匹配度等模块，需要快速迭代和稳定交付" />
+          </Form.Item>
+          <Space size={16} style={{ width: '100%' }} wrap>
+            <Form.Item name="salary_budget" label="薪资预算" style={{ width: 320 }}>
+              <Input placeholder="例如：20-35K，14薪" />
+            </Form.Item>
+            <Form.Item name="extra_requirements" label="补充要求" style={{ width: 320 }}>
+              <Input placeholder="例如：必须有 React + Python 项目经验" />
+            </Form.Item>
+          </Space>
+        </Form>
+      </Modal>
     </Card>
   )
 }

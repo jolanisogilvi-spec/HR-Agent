@@ -9,7 +9,7 @@ echo "=========================================="
 if [ ! -f ".env" ]; then
     echo "[1/5] 未检测到 .env 文件，从 .env.example 复制..."
     cp .env.example .env
-    echo "      请编辑 .env 文件，填入 ANTHROPIC_API_KEY 等必填配置后重新运行。"
+    echo "      请编辑 .env 文件，填入 AI_API_KEY 等必填配置后重新运行。"
     exit 1
 fi
 

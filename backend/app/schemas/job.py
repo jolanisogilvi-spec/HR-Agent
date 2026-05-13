@@ -22,6 +22,20 @@ class JobCreate(JobBase):
     pass
 
 
+class JobGenerateRequest(BaseModel):
+    role_prompt: str = Field(..., min_length=2, description="岗位方向或招聘目标")
+    department: Optional[str] = Field(default=None, max_length=100, description="所属部门")
+    seniority: Optional[str] = Field(default=None, max_length=50, description="岗位级别")
+    location: Optional[str] = Field(default=None, max_length=100, description="工作地点")
+    business_context: Optional[str] = Field(default=None, description="业务背景")
+    salary_budget: Optional[str] = Field(default=None, max_length=100, description="薪资预算")
+    extra_requirements: Optional[str] = Field(default=None, description="补充要求")
+
+
+class JobGenerateResponse(JobBase):
+    generation_notes: Optional[str] = Field(default=None, description="生成说明")
+
+
 class JobUpdate(BaseModel):
     title: Optional[str] = None
     department: Optional[str] = None
