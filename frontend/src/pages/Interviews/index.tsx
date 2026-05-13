@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Table, Button, Space, Tag, Card, Modal, Form, Input, InputNumber, DatePicker, Select, message, Tabs, List, Popconfirm } from 'antd'
+import { Table, Button, Space, Tag, Card, Modal, Form, Input, InputNumber, DatePicker, Select, message, Tabs, List, Popconfirm, TimePicker } from 'antd'
 import { PlusOutlined, CalendarOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { interviewsApi, resumesApi } from '../../services/api'
 import type { Interview, Resume } from '../../types'
 
 const DAY_NAMES = ['周一','周二','周三','周四','周五','周六','周日']
+const formatAvailabilityTime = (value?: string) => value ? value.slice(0, 5) : ''
 
 export default function Interviews() {
   const [interviews, setInterviews] = useState<Interview[]>([])
@@ -18,7 +19,9 @@ export default function Interviews() {
   const [resumes, setResumes] = useState<Resume[]>([])
   const [suggestedTimes, setSuggestedTimes] = useState<string[]>([])
   const [availability, setAvailability] = useState<any[]>([])
+  const [addingAvailability, setAddingAvailability] = useState(false)
   const [avForm] = Form.useForm()
+  const availableResumes = resumes.filter(r => r.status !== '面试通过')
 
   const fetchAll = async () => {
     setLoading(true)
@@ -74,9 +77,53 @@ export default function Interviews() {
   }
 
   const handleAddAvailability = async (values: any) => {
-    await interviewsApi.addHrAvailability(values)
-    message.success('可用时间已添加')
-    avForm.resetFields()
+    const startDay = values.day_start
+    const endDay = values.day_end
+    if (startDay == null || endDay == null) {
+      message.error('请选择星期范围')
+      return
+    }
+    if (startDay > endDay) {
+      message.error('结束星期不能早于开始星期')
+      return
+    }
+    const startTime = values.start_time?.format?.('HH:mm')
+    const endTime = values.end_time?.format?.('HH:mm')
+    if (!startTime || !endTime) {
+      message.error('请选择开始和结束时间')
+      return
+    }
+    if (startTime >= endTime) {
+      message.error('开始时间必须早于结束时间')
+      return
+    }
+
+    setAddingAvailability(true)
+    try {
+      const tasks = []
+      for (let day = startDay; day <= endDay; day += 1) {
+        tasks.push(interviewsApi.addHrAvailability({
+          day_of_week: day,
+          start_time: startTime,
+          end_time: endTime,
+          is_active: true,
+        }))
+      }
+      await Promise.all(tasks)
+      message.success(`已添加 ${tasks.length} 个可用时间段`)
+      avForm.resetFields()
+      fetchAll()
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail
+      message.error(detail || '添加可用时间失败')
+    } finally {
+      setAddingAvailability(false)
+    }
+  }
+
+  const handleDeleteInterview = async (id: number) => {
+    await interviewsApi.delete(id)
+    message.success('面试记录已删除')
     fetchAll()
   }
 
@@ -93,6 +140,15 @@ export default function Interviews() {
       render: (s: string) => <Tag color={s === '已完成' ? 'success' : s === '已取消' ? 'error' : 'blue'}>{s}</Tag> },
     { title: '邮件', dataIndex: 'email_sent', key: 'email',
       render: (s: boolean) => <Tag color={s ? 'success' : 'default'}>{s ? '已发送' : '未发送'}</Tag> },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_: unknown, r: Interview) => (
+        <Popconfirm title="确定删除此面试记录？" onConfirm={() => handleDeleteInterview(r.id)}>
+          <Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
+        </Popconfirm>
+      )
+    },
   ]
 
   return (
@@ -117,20 +173,36 @@ export default function Interviews() {
           label: 'HR可用时间管理',
           children: (
             <Card>
-              <Form form={avForm} layout="inline" onFinish={handleAddAvailability} style={{ marginBottom: 16 }}>
-                <Form.Item name="day_of_week" label="星期" rules={[{ required: true }]}>
-                  <Select style={{ width: 100 }}>
+              <Form
+                form={avForm}
+                layout="inline"
+                onFinish={handleAddAvailability}
+                style={{ marginBottom: 16, rowGap: 12 }}
+                initialValues={{
+                  day_start: 0,
+                  day_end: 4,
+                  start_time: dayjs().hour(9).minute(0).second(0),
+                  end_time: dayjs().hour(18).minute(0).second(0),
+                }}
+              >
+                <Form.Item name="day_start" label="开始星期" rules={[{ required: true, message: '请选择开始星期' }]}>
+                  <Select style={{ width: 112 }}>
                     {DAY_NAMES.map((d, i) => <Select.Option key={i} value={i}>{d}</Select.Option>)}
                   </Select>
                 </Form.Item>
-                <Form.Item name="start_time" label="开始时间" rules={[{ required: true }]}>
-                  <Input placeholder="09:00" style={{ width: 100 }} />
+                <Form.Item name="day_end" label="结束星期" rules={[{ required: true, message: '请选择结束星期' }]}>
+                  <Select style={{ width: 112 }}>
+                    {DAY_NAMES.map((d, i) => <Select.Option key={i} value={i}>{d}</Select.Option>)}
+                  </Select>
                 </Form.Item>
-                <Form.Item name="end_time" label="结束时间" rules={[{ required: true }]}>
-                  <Input placeholder="18:00" style={{ width: 100 }} />
+                <Form.Item name="start_time" label="开始时间" rules={[{ required: true, message: '请选择开始时间' }]}>
+                  <TimePicker format="HH:mm" minuteStep={15} showNow={false} inputReadOnly style={{ width: 112 }} />
+                </Form.Item>
+                <Form.Item name="end_time" label="结束时间" rules={[{ required: true, message: '请选择结束时间' }]}>
+                  <TimePicker format="HH:mm" minuteStep={15} showNow={false} inputReadOnly style={{ width: 112 }} />
                 </Form.Item>
                 <Form.Item>
-                  <Button type="primary" htmlType="submit">添加时间段</Button>
+                  <Button type="primary" htmlType="submit" loading={addingAvailability}>添加时间段</Button>
                 </Form.Item>
               </Form>
               <List dataSource={availability} renderItem={(slot: any) => (
@@ -140,7 +212,7 @@ export default function Interviews() {
                     <Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
                   </Popconfirm>
                 ]}>
-                  <span>{slot.day_name}：{slot.start_time} -- {slot.end_time}</span>
+                  <span>{slot.day_name}：{formatAvailabilityTime(slot.start_time)} -- {formatAvailabilityTime(slot.end_time)}</span>
                 </List.Item>
               )} />
             </Card>
@@ -159,8 +231,10 @@ export default function Interviews() {
         <Form form={form} layout="vertical" onFinish={handleCreate} initialValues={{ duration_minutes: 60 }}>
           <Form.Item name="resume_id" label="候选人" rules={[{ required: true, message: '请选择候选人' }]}>
             <Select placeholder="选择候选人">
-              {resumes.map(r => (
-                <Select.Option key={r.id} value={r.id}>{r.candidate_name}</Select.Option>
+              {availableResumes.map(r => (
+                <Select.Option key={r.id} value={r.id}>
+                  {r.candidate_name} ｜ {r.status}
+                </Select.Option>
               ))}
             </Select>
           </Form.Item>
@@ -197,8 +271,10 @@ export default function Interviews() {
         <Form form={autoForm} layout="vertical" onFinish={handleAutoSchedule} initialValues={{ duration_minutes: 60 }}>
           <Form.Item name="resume_id" label="候选人" rules={[{ required: true, message: '请选择候选人' }]}>
             <Select placeholder="选择候选人">
-              {resumes.map(r => (
-                <Select.Option key={r.id} value={r.id}>{r.candidate_name}</Select.Option>
+              {availableResumes.map(r => (
+                <Select.Option key={r.id} value={r.id}>
+                  {r.candidate_name} ｜ {r.status}
+                </Select.Option>
               ))}
             </Select>
           </Form.Item>

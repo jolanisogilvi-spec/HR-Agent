@@ -7,12 +7,12 @@ import {
 const { Sider, Content, Header } = Layout
 
 const menuItems = [
-  { key: '/dashboard', icon: <DashboardOutlined />, label: '数据看板' },
-  { key: '/jobs', icon: <TeamOutlined />, label: '岗位管理' },
-  { key: '/resumes', icon: <FileTextOutlined />, label: '人才库' },
-  { key: '/interviews', icon: <CalendarOutlined />, label: '面试管理' },
-  { key: '/usage', icon: <BarChartOutlined />, label: '用量统计' },
-  { key: '/settings', icon: <SettingOutlined />, label: '系统设置' },
+  { key: '/dashboard', icon: <DashboardOutlined />, label: '数据看板', desc: '招聘漏斗与趋势' },
+  { key: '/jobs', icon: <TeamOutlined />, label: '岗位管理', desc: '岗位与评估标准' },
+  { key: '/resumes', icon: <FileTextOutlined />, label: '人才库', desc: '简历解析与匹配' },
+  { key: '/interviews', icon: <CalendarOutlined />, label: '面试管理', desc: '面试安排与跟进' },
+  { key: '/usage', icon: <BarChartOutlined />, label: '用量统计', desc: '模型调用与成本' },
+  { key: '/settings', icon: <SettingOutlined />, label: '系统设置', desc: '模型与基础配置' },
 ]
 
 export default function MainLayout() {
@@ -20,13 +20,17 @@ export default function MainLayout() {
   const location = useLocation()
 
   const selectedKey = menuItems.find(item => location.pathname.startsWith(item.key))?.key || '/dashboard'
+  const currentItem = menuItems.find(item => item.key === selectedKey) || menuItems[0]
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Sider theme="dark" width={200}>
-        <div style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: '#fff', fontSize: 16, fontWeight: 'bold', borderBottom: '1px solid #303030' }}>
-          智能HR Agent
+    <Layout className="app-shell">
+      <Sider theme="dark" width={220} className="app-sider">
+        <div className="brand-panel">
+          <div className="brand-mark">HR</div>
+          <div>
+            <div className="brand-title">智能HR Agent</div>
+            <div className="brand-subtitle">AI Recruiting OS</div>
+          </div>
         </div>
         <Menu
           theme="dark"
@@ -34,16 +38,24 @@ export default function MainLayout() {
           selectedKeys={[selectedKey]}
           items={menuItems}
           onClick={({ key }) => navigate(key)}
-          style={{ marginTop: 8 }}
+          className="app-menu"
         />
       </Sider>
-      <Layout>
-        <Header style={{ background: '#fff', padding: '0 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
-                         display: 'flex', alignItems: 'center' }}>
-          <span style={{ fontSize: 18, fontWeight: 600, color: '#333' }}>智能招聘管理系统</span>
+      <Layout className="app-main">
+        <Header className="app-header">
+          <div>
+            <div className="page-kicker">{currentItem.desc}</div>
+            <div className="page-title">{currentItem.label}</div>
+          </div>
+          <div className="system-status">
+            <span className="status-dot" />
+            系统在线
+          </div>
         </Header>
-        <Content style={{ margin: 24, background: '#f5f5f5', minHeight: 'calc(100vh - 112px)' }}>
-          <Outlet />
+        <Content className="app-content">
+          <div className="content-panel">
+            <Outlet />
+          </div>
         </Content>
       </Layout>
     </Layout>

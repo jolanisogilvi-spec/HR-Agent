@@ -53,22 +53,22 @@ export default function Usage() {
   return (
     <div style={{ padding: 8 }}>
       <Row gutter={[16, 16]}>
-        <Col span={6}>
+        <Col xs={24} sm={12} xl={6}>
           <Card>
             <Statistic title="已评估简历" value={stats.summary.evaluated_resumes} prefix={<FileDoneOutlined />} />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} xl={6}>
           <Card>
             <Statistic title="AI 调用次数" value={stats.summary.ai_call_count} prefix={<ThunderboltOutlined />} />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} xl={6}>
           <Card>
             <Statistic title="累计 Token" value={stats.summary.total_tokens} prefix={<FieldTimeOutlined />} />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} xl={6}>
           <Card>
             <Statistic title="估算费用（元）" value={stats.summary.estimated_cost_cny} precision={6}
                        prefix={<DollarOutlined />} />

@@ -31,12 +31,29 @@ export default function JobForm() {
   const handleSubmit = async (values: Partial<Job>) => {
     setLoading(true)
     try {
+      let savedJob: Job
       if (isEdit) {
-        await jobsApi.update(Number(id), { ...values, evaluation_criteria: criteria })
+        savedJob = await jobsApi.update(Number(id), { ...values, evaluation_criteria: criteria })
         message.success('岗位已更新')
       } else {
-        await jobsApi.create({ ...values, evaluation_criteria: criteria })
+        savedJob = await jobsApi.create({ ...values, evaluation_criteria: criteria })
         message.success('岗位已创建')
+      }
+      setGenerating(true)
+      message.loading({ content: '正在自动生成AI评估标准...', key: 'autoCriteria', duration: 0 })
+      try {
+        const res = await jobsApi.generateCriteria(savedJob.id)
+        setCriteria(res.evaluation_criteria)
+        message.success({ content: 'AI评估标准已自动生成', key: 'autoCriteria', duration: 2 })
+      } catch (err: any) {
+        const detail = err?.response?.data?.detail
+        message.warning({
+          content: detail || '岗位已保存，但AI评估标准生成失败，请检查模型配置后重试',
+          key: 'autoCriteria',
+          duration: 4,
+        })
+      } finally {
+        setGenerating(false)
       }
       navigate('/jobs')
     } finally {

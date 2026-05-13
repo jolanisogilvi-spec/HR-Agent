@@ -52,6 +52,7 @@ export const interviewsApi = {
     api.get<any, { total: number; items: Interview[] }>('/interviews', { params }),
   create: (data: Record<string, unknown>) => api.post<any, { id: number; message: string }>('/interviews', data),
   update: (id: number, data: Record<string, unknown>) => api.put(`/interviews/${id}`, data),
+  delete: (id: number) => api.delete(`/interviews/${id}`),
   autoSchedule: (data: { resume_id: number; duration_minutes?: number }) =>
     api.post<any, { suggested_times: string[]; message: string }>('/interviews/auto-schedule', data),
   getHrAvailability: () => api.get<any, any[]>('/hr-availability'),
