@@ -14,6 +14,7 @@ PURPOSE_LABELS = {
     "resume_parse": "简历解析",
     "job_draft": "岗位生成",
     "evaluation_criteria": "评估标准生成",
+    "interview_minutes_evaluation": "面试纪要评估",
 }
 
 

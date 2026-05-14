@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, func
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Float, JSON, func
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -17,6 +17,11 @@ class Interview(Base):
     status = Column(String(20), default="已安排", comment="状态: 已安排/已完成/已取消")
     email_sent = Column(Boolean, default=False, comment="是否已发送邮件通知")
     notes = Column(Text, nullable=True, comment="面试备注")
+    meeting_minutes_file_name = Column(String(300), nullable=True, comment="面试会议纪要文件名")
+    meeting_minutes_text = Column(Text, nullable=True, comment="面试会议纪要原文")
+    interview_ai_score = Column(Float, nullable=True, comment="面试AI评分 0-100")
+    interview_ai_evaluation = Column(JSON, nullable=True, comment="面试AI评估结果")
+    interview_ai_evaluated_at = Column(DateTime(timezone=True), nullable=True, comment="面试AI评估时间")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

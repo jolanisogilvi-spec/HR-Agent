@@ -1,8 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import datetime, timedelta, time
+import asyncio
 import logging
+import os
+import uuid
 
 from app.database import get_db
 from app.models.interview import Interview
@@ -22,6 +25,20 @@ from app.schemas.interview import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/interviews", tags=["面试管理"])
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads", "interviews")
+
+
+def _resume_summary(resume: Resume) -> str:
+    parts = []
+    if isinstance(resume.parsed_data, dict):
+        summary = resume.parsed_data.get("summary")
+        if summary:
+            parts.append(f"候选人摘要：{summary}")
+    if isinstance(resume.skills, list) and resume.skills:
+        parts.append(f"技能：{'、'.join(str(skill) for skill in resume.skills[:12])}")
+    if resume.raw_text:
+        parts.append(f"简历原文节选：{resume.raw_text[:1600]}")
+    return "\n".join(parts)
 
 
 @router.get("", response_model=InterviewListResponse)
@@ -74,6 +91,69 @@ def get_interview(interview_id: int, db: Session = Depends(get_db)):
     if not interview:
         raise HTTPException(status_code=404, detail="面试记录不存在")
     return interview
+
+
+@router.post("/{interview_id}/minutes", response_model=InterviewResponse)
+async def upload_interview_minutes(
+    interview_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    interview = db.query(Interview).filter(Interview.id == interview_id).first()
+    if not interview:
+        raise HTTPException(status_code=404, detail="面试记录不存在")
+
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in (".pdf", ".docx", ".doc", ".txt", ".md"):
+        raise HTTPException(status_code=400, detail="仅支持 PDF、DOCX、DOC、TXT、MD 格式")
+
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    unique_name = f"{uuid.uuid4().hex}{ext}"
+    file_path = os.path.join(UPLOAD_DIR, unique_name)
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="会议纪要文件为空")
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="会议纪要文件不能超过 10MB")
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    try:
+        from app.services.document_parser import document_parser
+        from app.services.ai_service import ai_service
+
+        minutes_text = await asyncio.to_thread(document_parser.parse_file, file_path)
+        if not minutes_text:
+            raise HTTPException(status_code=400, detail="未能从会议纪要中解析出文本")
+
+        evaluation = await ai_service.evaluate_interview_minutes(
+            minutes_text=minutes_text,
+            candidate_name=interview.candidate_name or "未知候选人",
+            job_title=interview.job_title or "",
+            job_description=interview.job.description if interview.job else "",
+            job_requirements=interview.job.requirements if interview.job else "",
+            resume_summary=_resume_summary(interview.resume) if interview.resume else "",
+        )
+        interview.meeting_minutes_file_name = file.filename
+        interview.meeting_minutes_text = minutes_text
+        interview.interview_ai_score = evaluation["interview_score"]
+        interview.interview_ai_evaluation = evaluation
+        interview.interview_ai_evaluated_at = datetime.now()
+        interview.status = "已完成"
+        db.commit()
+        db.refresh(interview)
+        return interview
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"面试纪要AI评估失败: {e}")
+        error_text = str(e)
+        if "401" in error_text or "Invalid API Key" in error_text or "invalid_key" in error_text:
+            raise HTTPException(
+                status_code=400,
+                detail="AI API Key 无效，请在系统设置中更新有效密钥后重试",
+            )
+        raise HTTPException(status_code=500, detail=f"面试纪要AI评估失败: {error_text}")
 
 
 @router.put("/{interview_id}/status")

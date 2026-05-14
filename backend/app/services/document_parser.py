@@ -11,6 +11,8 @@ class DocumentParser:
             return self.parse_pdf(file_path)
         elif ext in (".docx", ".doc"):
             return self.parse_docx(file_path)
+        elif ext in (".txt", ".md"):
+            return self.parse_text(file_path)
         else:
             raise ValueError(f"不支持的文件格式: {ext}")
 
@@ -31,6 +33,16 @@ class DocumentParser:
                     if cell.text.strip():
                         paragraphs.append(cell.text.strip())
         return "\n".join(paragraphs)
+
+    def parse_text(self, file_path: str) -> str:
+        for encoding in ("utf-8-sig", "utf-8", "gbk"):
+            try:
+                with open(file_path, "r", encoding=encoding) as f:
+                    return f.read().strip()
+            except UnicodeDecodeError:
+                continue
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            return f.read().strip()
 
 
 document_parser = DocumentParser()

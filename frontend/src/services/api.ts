@@ -53,6 +53,10 @@ export const interviewsApi = {
   create: (data: Record<string, unknown>) => api.post<any, { id: number; message: string }>('/interviews', data),
   update: (id: number, data: Record<string, unknown>) => api.put(`/interviews/${id}`, data),
   delete: (id: number) => api.delete(`/interviews/${id}`),
+  uploadMinutes: (id: number, formData: FormData) =>
+    api.post<any, Interview>(`/interviews/${id}/minutes`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
   autoSchedule: (data: { resume_id: number; duration_minutes?: number }) =>
     api.post<any, { suggested_times: string[]; message: string }>('/interviews/auto-schedule', data),
   getHrAvailability: () => api.get<any, any[]>('/hr-availability'),

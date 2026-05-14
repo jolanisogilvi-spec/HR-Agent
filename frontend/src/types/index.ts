@@ -83,6 +83,19 @@ export interface Interview {
   status: '已安排' | '已完成' | '已取消'
   email_sent: boolean
   notes?: string
+  meeting_minutes_file_name?: string
+  meeting_minutes_text?: string
+  interview_ai_score?: number
+  interview_ai_evaluation?: {
+    interview_score: number
+    decision: string
+    summary: string
+    strengths: string[]
+    risks: string[]
+    follow_up_questions: string[]
+    next_steps: string[]
+  }
+  interview_ai_evaluated_at?: string
   created_at: string
 }
 

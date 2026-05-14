@@ -1,12 +1,19 @@
 import { useEffect, useState } from 'react'
-import { Table, Button, Space, Tag, Card, Modal, Form, Input, InputNumber, DatePicker, Select, message, Tabs, List, Popconfirm, TimePicker } from 'antd'
-import { PlusOutlined, CalendarOutlined, DeleteOutlined } from '@ant-design/icons'
+import { Table, Button, Space, Tag, Card, Modal, Form, Input, InputNumber, DatePicker, Select, message, Tabs, List, Popconfirm, TimePicker, Upload, Progress, Typography, Divider } from 'antd'
+import { PlusOutlined, CalendarOutlined, DeleteOutlined, UploadOutlined, FileSearchOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { interviewsApi, resumesApi } from '../../services/api'
 import type { Interview, Resume } from '../../types'
 
 const DAY_NAMES = ['周一','周二','周三','周四','周五','周六','周日']
 const formatAvailabilityTime = (value?: string) => value ? value.slice(0, 5) : ''
+const scoreColor = (score?: number) => {
+  if (score == null) return 'default'
+  if (score >= 85) return 'success'
+  if (score >= 70) return 'processing'
+  if (score >= 60) return 'warning'
+  return 'error'
+}
 
 export default function Interviews() {
   const [interviews, setInterviews] = useState<Interview[]>([])
@@ -21,6 +28,10 @@ export default function Interviews() {
   const [availability, setAvailability] = useState<any[]>([])
   const [addingAvailability, setAddingAvailability] = useState(false)
   const [avForm] = Form.useForm()
+  const [minutesOpen, setMinutesOpen] = useState(false)
+  const [selectedInterview, setSelectedInterview] = useState<Interview | null>(null)
+  const [minutesFileList, setMinutesFileList] = useState<any[]>([])
+  const [evaluatingMinutes, setEvaluatingMinutes] = useState(false)
   const availableResumes = resumes.filter(r => r.status !== '面试通过')
 
   const fetchAll = async () => {
@@ -127,6 +138,36 @@ export default function Interviews() {
     fetchAll()
   }
 
+  const openMinutesModal = (interview: Interview) => {
+    setSelectedInterview(interview)
+    setMinutesFileList([])
+    setMinutesOpen(true)
+  }
+
+  const handleUploadMinutes = async () => {
+    if (!selectedInterview) return
+    const file = minutesFileList[0]?.originFileObj
+    if (!file) {
+      message.warning('请先选择会议纪要文件')
+      return
+    }
+    const formData = new FormData()
+    formData.append('file', file)
+    setEvaluatingMinutes(true)
+    try {
+      const updated = await interviewsApi.uploadMinutes(selectedInterview.id, formData)
+      setSelectedInterview(updated)
+      message.success('会议纪要已上传，AI评估完成')
+      fetchAll()
+      setMinutesFileList([])
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail
+      message.error(detail || '会议纪要评估失败')
+    } finally {
+      setEvaluatingMinutes(false)
+    }
+  }
+
   const columns = [
     { title: '候选人', dataIndex: 'candidate_name', key: 'name' },
     { title: '应聘岗位', dataIndex: 'job_title', key: 'job' },
@@ -138,15 +179,22 @@ export default function Interviews() {
       r.meeting_link ? <a href={r.meeting_link} target="_blank" rel="noopener noreferrer">线上会议</a> : r.location || '-' },
     { title: '状态', dataIndex: 'status', key: 'status',
       render: (s: string) => <Tag color={s === '已完成' ? 'success' : s === '已取消' ? 'error' : 'blue'}>{s}</Tag> },
+    { title: '面试评分', dataIndex: 'interview_ai_score', key: 'interview_ai_score',
+      render: (score?: number) => score == null ? <Tag>未评估</Tag> : <Tag color={scoreColor(score)}>{Math.round(score)}分</Tag> },
     { title: '邮件', dataIndex: 'email_sent', key: 'email',
       render: (s: boolean) => <Tag color={s ? 'success' : 'default'}>{s ? '已发送' : '未发送'}</Tag> },
     {
       title: '操作',
       key: 'action',
       render: (_: unknown, r: Interview) => (
-        <Popconfirm title="确定删除此面试记录？" onConfirm={() => handleDeleteInterview(r.id)}>
-          <Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
-        </Popconfirm>
+        <Space>
+          <Button size="small" icon={<FileSearchOutlined />} onClick={() => openMinutesModal(r)}>
+            纪要评估
+          </Button>
+          <Popconfirm title="确定删除此面试记录？" onConfirm={() => handleDeleteInterview(r.id)}>
+            <Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
+          </Popconfirm>
+        </Space>
       )
     },
   ]
@@ -163,7 +211,7 @@ export default function Interviews() {
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>安排面试</Button>
                 <Button icon={<CalendarOutlined />} onClick={() => setAutoOpen(true)}>智能推荐时间</Button>
               </Space>
-              <Table rowKey="id" dataSource={interviews} columns={columns} loading={loading}
+              <Table rowKey="id" dataSource={interviews} columns={columns} loading={loading} scroll={{ x: 1180 }}
                      pagination={{ total, pageSize: 20 }} />
             </Card>
           )
@@ -298,6 +346,83 @@ export default function Interviews() {
               </List.Item>
             )}
           />
+        )}
+      </Modal>
+
+      <Modal
+        title="面试会议纪要 AI 评估"
+        open={minutesOpen}
+        onCancel={() => setMinutesOpen(false)}
+        footer={[
+          <Button key="close" onClick={() => setMinutesOpen(false)}>关闭</Button>,
+          <Button key="upload" type="primary" icon={<UploadOutlined />} loading={evaluatingMinutes} onClick={handleUploadMinutes}>
+            上传并评估
+          </Button>,
+        ]}
+        width={720}
+      >
+        {selectedInterview && (
+          <>
+            <Space direction="vertical" size={4} style={{ marginBottom: 16 }}>
+              <Typography.Text strong>{selectedInterview.candidate_name || '-'} ｜ {selectedInterview.job_title || '-'}</Typography.Text>
+              <Typography.Text type="secondary">
+                支持 PDF、Word、TXT、Markdown，上传后会自动解析纪要并调用当前设置的 AI 模型评分。
+              </Typography.Text>
+            </Space>
+
+            <Upload.Dragger
+              accept=".pdf,.doc,.docx,.txt,.md"
+              maxCount={1}
+              fileList={minutesFileList}
+              beforeUpload={() => false}
+              onChange={({ fileList }) => setMinutesFileList(fileList)}
+            >
+              <p className="ant-upload-drag-icon"><UploadOutlined /></p>
+              <p className="ant-upload-text">点击或拖拽上传会议纪要</p>
+              <p className="ant-upload-hint">上传后系统会自动进行面试复盘、评分和后续建议生成</p>
+            </Upload.Dragger>
+
+            {selectedInterview.interview_ai_score != null && selectedInterview.interview_ai_evaluation && (
+              <>
+                <Divider />
+                <Space align="center" size={16} style={{ marginBottom: 12 }}>
+                  <Progress
+                    type="circle"
+                    percent={Math.round(selectedInterview.interview_ai_score)}
+                    size={86}
+                    strokeColor={selectedInterview.interview_ai_score >= 70 ? '#20c997' : '#f5a524'}
+                  />
+                  <Space direction="vertical" size={4}>
+                    <Tag color={scoreColor(selectedInterview.interview_ai_score)}>
+                      {selectedInterview.interview_ai_evaluation.decision || '已评估'}
+                    </Tag>
+                    <Typography.Text strong>{selectedInterview.interview_ai_evaluation.summary}</Typography.Text>
+                    {selectedInterview.meeting_minutes_file_name && (
+                      <Typography.Text type="secondary">纪要文件：{selectedInterview.meeting_minutes_file_name}</Typography.Text>
+                    )}
+                  </Space>
+                </Space>
+                <List
+                  size="small"
+                  header="优势"
+                  dataSource={selectedInterview.interview_ai_evaluation.strengths || []}
+                  renderItem={item => <List.Item>{item}</List.Item>}
+                />
+                <List
+                  size="small"
+                  header="风险"
+                  dataSource={selectedInterview.interview_ai_evaluation.risks || []}
+                  renderItem={item => <List.Item>{item}</List.Item>}
+                />
+                <List
+                  size="small"
+                  header="后续建议"
+                  dataSource={selectedInterview.interview_ai_evaluation.next_steps || []}
+                  renderItem={item => <List.Item>{item}</List.Item>}
+                />
+              </>
+            )}
+          </>
         )}
       </Modal>
     </>

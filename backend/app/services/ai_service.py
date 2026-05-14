@@ -112,6 +112,26 @@ def _normalize_resume_evaluation(data: dict) -> dict:
     }
 
 
+def _normalize_interview_evaluation(data: dict) -> dict:
+    score = None
+    for key in ("interview_score", "score", "overall_score", "hire_score", "综合评分"):
+        score = _coerce_score(data.get(key))
+        if score is not None:
+            break
+    if score is None:
+        raise ValueError("AI未返回有效面试评分，请重试")
+
+    return {
+        "interview_score": score,
+        "decision": str(data.get("decision") or data.get("recommendation") or _recommendation_from_score(score)).strip(),
+        "summary": str(data.get("summary") or data.get("overall_assessment") or "").strip(),
+        "strengths": _as_list(data.get("strengths") or data.get("core_strengths") or data.get("优势")),
+        "risks": _as_list(data.get("risks") or data.get("concerns") or data.get("风险")),
+        "follow_up_questions": _as_list(data.get("follow_up_questions") or data.get("questions") or data.get("追问建议")),
+        "next_steps": _as_list(data.get("next_steps") or data.get("actions") or data.get("后续建议")),
+    }
+
+
 def _get_client() -> OpenAI:
     ai_config = runtime_settings_service.get_ai_config()
     return OpenAI(
@@ -367,6 +387,49 @@ class AIService:
 
 请用中文生成，格式清晰，条理分明。"""
         return await _chat_async(prompt, purpose="evaluation_criteria")
+
+    async def evaluate_interview_minutes(
+        self,
+        minutes_text: str,
+        candidate_name: str,
+        job_title: str,
+        job_description: str,
+        job_requirements: str,
+        resume_summary: str,
+    ) -> dict:
+        prompt = f"""你是一位资深HR和技术面试复盘专家。请根据岗位信息、候选人背景和面试会议纪要，对这次面试进行客观评估并打分。
+
+【候选人】：{candidate_name}
+【应聘岗位】：{job_title}
+【岗位描述】：
+{job_description}
+【岗位要求】：
+{job_requirements}
+【候选人简历摘要】：
+{resume_summary or "暂无"}
+【面试会议纪要】：
+{minutes_text}
+
+请返回 JSON，字段必须完整：
+{{
+  "interview_score": 82,
+  "decision": "推荐/待定/不推荐/强烈推荐",
+  "summary": "100字以内的面试结论",
+  "strengths": ["表现出的优势1", "表现出的优势2"],
+  "risks": ["需要关注的风险1", "需要关注的风险2"],
+  "follow_up_questions": ["后续追问或背调问题1", "后续追问或背调问题2"],
+  "next_steps": ["下一步建议1", "下一步建议2"]
+}}
+
+评分要求：
+1. interview_score 必须是 0-100 的整数。
+2. 重点依据会议纪要中的实际回答、项目细节、沟通表达、岗位匹配度和风险信号，不要只凭简历打分。
+3. 纪要信息不足时可以给中性偏保守评分，并在 risks 中说明信息不足。
+4. 如果候选人表现出清晰的问题拆解、真实项目经验、指标结果、协作意识和岗位核心能力，应合理给高分。
+5. 如果回答空泛、关键问题未验证、与岗位核心要求差距明显，应下调分数。
+6. 只返回 JSON，不要 Markdown，不要额外解释。"""
+        evaluation = await _chat_json_async(prompt, max_tokens=1800, purpose="interview_minutes_evaluation")
+        return _normalize_interview_evaluation(evaluation)
 
 
 ai_service = AIService()

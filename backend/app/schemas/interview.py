@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Any
 from datetime import datetime, time
 
 
@@ -26,6 +26,11 @@ class InterviewResponse(BaseModel):
     status: str = "已安排"
     email_sent: bool = False
     notes: Optional[str] = None
+    meeting_minutes_file_name: Optional[str] = None
+    meeting_minutes_text: Optional[str] = None
+    interview_ai_score: Optional[float] = None
+    interview_ai_evaluation: Optional[dict[str, Any]] = None
+    interview_ai_evaluated_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
     candidate_name: Optional[str] = None
